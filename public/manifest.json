@@ -1,0 +1,67 @@
+{
+    "name": "Sổ Nợ Điện Tử",
+    "short_name": "Sổ Nợ",
+    "description": "Hệ thống quản lý công nợ cho hộ kinh doanh",
+    "start_url": "/",
+    "display": "standalone",
+    "background_color": "#ffffff",
+    "theme_color": "#0284c7",
+    "orientation": "portrait-primary",
+    "icons": [
+        {
+            "src": "/icon-192.png",
+            "sizes": "192x192",
+            "type": "image/png",
+            "purpose": "any maskable"
+        },
+        {
+            "src": "/icon-512.png",
+            "sizes": "512x512",
+            "type": "image/png",
+            "purpose": "any maskable"
+        }
+    ],
+    "categories": [
+        "business",
+        "finance",
+        "productivity"
+    ],
+    "shortcuts": [
+        {
+            "name": "Ghi nợ",
+            "short_name": "Ghi nợ",
+            "description": "Ghi nhận nợ mới",
+            "url": "/debt",
+            "icons": [
+                {
+                    "src": "/icon-192.png",
+                    "sizes": "192x192"
+                }
+            ]
+        },
+        {
+            "name": "Thanh toán",
+            "short_name": "Thanh toán",
+            "description": "Ghi nhận thanh toán",
+            "url": "/payment",
+            "icons": [
+                {
+                    "src": "/icon-192.png",
+                    "sizes": "192x192"
+                }
+            ]
+        },
+        {
+            "name": "Tra cứu",
+            "short_name": "Tra cứu",
+            "description": "Tra cứu công nợ",
+            "url": "/lookup",
+            "icons": [
+                {
+                    "src": "/icon-192.png",
+                    "sizes": "192x192"
+                }
+            ]
+        }
+    ]
+}
