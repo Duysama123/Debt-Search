@@ -2,10 +2,13 @@ import { NextRequest, NextResponse } from 'next/server'
 import { getTransactions, createTransaction, softDeleteTransaction, updateTransaction } from '@/lib/db'
 
 export const dynamic = 'force-dynamic'
+export const runtime = 'nodejs'
+export const revalidate = 0
 
 export async function GET(request: NextRequest) {
     try {
-        const searchParams = request.nextUrl.searchParams
+        const url = new URL(request.url)
+        const searchParams = url.searchParams
         const customerId = searchParams.get('customer_id')
         const page = parseInt(searchParams.get('page') || '1')
         const limit = parseInt(searchParams.get('limit') || '50')
@@ -120,7 +123,8 @@ export async function PUT(request: NextRequest) {
 
 export async function DELETE(request: NextRequest) {
     try {
-        const searchParams = request.nextUrl.searchParams
+        const url = new URL(request.url)
+        const searchParams = url.searchParams
         const id = searchParams.get('id')
 
         if (!id) {
