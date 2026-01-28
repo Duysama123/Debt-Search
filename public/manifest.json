@@ -1,7 +1,7 @@
 {
     "name": "Sổ Nợ Điện Tử",
     "short_name": "Sổ Nợ",
-    "description": "Hệ thống quản lý công nợ cho hộ kinh doanh",
+    "description": "Hệ thống quản lý công nợ chuyên nghiệp cho Shop Lý Triệu",
     "start_url": "/",
     "display": "standalone",
     "background_color": "#ffffff",
