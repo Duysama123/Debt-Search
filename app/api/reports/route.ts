@@ -5,7 +5,8 @@ export const dynamic = 'force-dynamic'
 
 export async function GET(request: NextRequest) {
     try {
-        const searchParams = request.nextUrl.searchParams
+        const url = new URL(request.url)
+        const searchParams = url.searchParams
         const search = searchParams.get('search') || ''
 
         // Parallel fetch for summary and list
