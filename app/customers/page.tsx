@@ -1,6 +1,8 @@
 'use client'
 
 import { useState, useEffect } from 'react'
+import Link from 'next/link'
+import toast from 'react-hot-toast'
 import Layout from '@/components/Layout'
 import { formatCurrency, formatPhone, debounce } from '@/lib/utils'
 
@@ -19,6 +21,7 @@ export default function CustomersPage() {
     const [loading, setLoading] = useState(false)
     const [customers, setCustomers] = useState<Customer[]>([])
     const [searchTerm, setSearchTerm] = useState('')
+    const [deleteCustomer, setDeleteCustomer] = useState<{ id: string, name: string } | null>(null)
     const [formData, setFormData] = useState({
         name: '',
         phone: '',
@@ -53,6 +56,32 @@ export default function CustomersPage() {
 
     const handleSubmit = async (e: React.FormEvent) => {
         e.preventDefault()
+
+        if (!formData.name) {
+            toast.error('Vui lòng nhập tên khách hàng')
+            return
+        }
+
+        // Check for duplicate phone number
+        if (formData.phone) {
+            const existingCustomer = customers.find(c => c.phone === formData.phone)
+            if (existingCustomer) {
+                toast.error(`Số điện thoại này dùng cho: ${existingCustomer.name}`, {
+                    style: {
+                        background: '#FEF2F2', // red-50
+                        color: '#991B1B',      // red-800
+                        border: '1px solid #FCA5A5', // red-300
+                        fontWeight: '500'
+                    },
+                    iconTheme: {
+                        primary: '#EF4444',
+                        secondary: '#FFFAEE',
+                    },
+                })
+                return
+            }
+        }
+
         try {
             const res = await fetch('/api/customers', {
                 method: 'POST',
@@ -64,38 +93,36 @@ export default function CustomersPage() {
             if (data.success) {
                 setShowForm(false)
                 setFormData({ name: '', phone: '', notes: '' })
-                fetchCustomers(searchTerm) // Reload list
-                alert('Thêm khách hàng thành công!')
+                fetchCustomers(searchTerm)
+                toast.success('Thêm khách hàng thành công!')
             } else {
-                alert(data.error || 'Có lỗi xảy ra')
+                toast.error(data.error || 'Có lỗi xảy ra')
             }
         } catch (error) {
             console.error('Error creating customer:', error)
-            alert('Có lỗi xảy ra khi tạo khách hàng')
+            toast.error('Có lỗi xảy ra khi tạo khách hàng')
         }
     }
 
-    const handleDelete = async (id: string, name: string) => {
-        if (!confirm(`Bạn có chắc chắn muốn xóa khách hàng "${name}"?
-Mọi giao dịch liên quan sẽ bị xóa vĩnh viễn.`)) {
-            return
-        }
+    const handleDeleteConfirm = async () => {
+        if (!deleteCustomer) return
 
         try {
-            const res = await fetch(`/api/customers/${id}`, {
+            const res = await fetch(`/api/customers/${deleteCustomer.id}`, {
                 method: 'DELETE'
             })
             const data = await res.json()
 
             if (data.success) {
                 fetchCustomers(searchTerm)
-                alert('Đã xóa khách hàng')
+                toast.success('Đã xóa khách hàng thành công!')
+                setDeleteCustomer(null)
             } else {
-                alert(data.error || 'Có lỗi xảy ra')
+                toast.error(data.error || 'Có lỗi xảy ra')
             }
         } catch (error) {
             console.error('Error deleting customer:', error)
-            alert('Có lỗi xảy ra khi xóa khách hàng')
+            toast.error('Có lỗi xảy ra khi xóa khách hàng')
         }
     }
 
@@ -217,7 +244,14 @@ Mọi giao dịch liên quan sẽ bị xóa vĩnh viễn.`)) {
                                 ) : customers.length > 0 ? (
                                     customers.map((customer) => (
                                         <tr key={customer.id} className="hover:bg-gray-50 transition-colors">
-                                            <td className="table-cell font-medium text-gray-900">{customer.name}</td>
+                                            <td className="table-cell font-medium text-gray-900">
+                                                <Link
+                                                    href={`/customers/${customer.id}`}
+                                                    className="hover:text-primary-600 hover:underline transition-colors"
+                                                >
+                                                    {customer.name}
+                                                </Link>
+                                            </td>
                                             <td className="table-cell text-gray-600 font-mono">
                                                 {customer.phone ? formatPhone(customer.phone) : '-'}
                                             </td>
@@ -227,18 +261,31 @@ Mọi giao dịch liên quan sẽ bị xóa vĩnh viễn.`)) {
                                             <td className="table-cell text-right text-green-600 font-medium">
                                                 {formatCurrency(customer.total_paid)}
                                             </td>
-                                            <td className={`table-cell text-right font-bold ${customer.balance > 0 ? 'text-orange-600' : 'text-gray-900'
+                                            <td className={`table-cell text-right font-bold ${customer.balance > 0
+                                                ? 'text-orange-600'
+                                                : customer.balance < 0
+                                                    ? 'text-purple-600'
+                                                    : 'text-gray-900'
                                                 }`}>
-                                                {formatCurrency(customer.balance)}
+                                                {customer.balance < 0 ? `+${formatCurrency(Math.abs(customer.balance))}` : formatCurrency(customer.balance)}
                                             </td>
                                             <td className="table-cell text-center">
-                                                <button
-                                                    onClick={() => handleDelete(customer.id, customer.name)}
-                                                    className="text-red-500 hover:text-red-700 font-medium p-2 hover:bg-red-50 rounded-lg transition-colors"
-                                                    title="Xóa khách hàng"
-                                                >
-                                                    Xóa
-                                                </button>
+                                                <div className="flex items-center justify-center gap-2">
+                                                    <Link
+                                                        href={`/customers/${customer.id}`}
+                                                        className="text-primary-600 hover:text-primary-700 font-medium p-2 hover:bg-primary-50 rounded-lg transition-colors"
+                                                        title="Xem chi tiết"
+                                                    >
+                                                        Chi tiết
+                                                    </Link>
+                                                    <button
+                                                        onClick={() => setDeleteCustomer({ id: customer.id, name: customer.name })}
+                                                        className="text-red-500 hover:text-red-700 font-medium p-2 hover:bg-red-50 rounded-lg transition-colors"
+                                                        title="Xóa khách hàng"
+                                                    >
+                                                        Xóa
+                                                    </button>
+                                                </div>
                                             </td>
                                         </tr>
                                     ))
@@ -257,6 +304,42 @@ Mọi giao dịch liên quan sẽ bị xóa vĩnh viễn.`)) {
                         </table>
                     </div>
                 </div>
+
+                {/* Delete Confirmation Modal */}
+                {deleteCustomer && (
+                    <div className="fixed inset-0 z-50 flex items-center justify-center bg-black bg-opacity-50 animate-fade-in px-4">
+                        <div className="bg-white rounded-xl shadow-2xl w-full max-w-md overflow-hidden animate-scale-up">
+                            <div className="px-6 py-4 bg-red-600 text-white">
+                                <h3 className="text-xl font-bold">⚠️ Xác nhận xóa khách hàng</h3>
+                            </div>
+                            <div className="p-6">
+                                <p className="text-gray-700 text-lg font-medium mb-2">
+                                    Bạn có chắc chắn muốn xóa khách hàng <span className="text-red-600 font-bold">"{deleteCustomer.name}"</span>?
+                                </p>
+                                <div className="bg-yellow-50 border border-yellow-200 rounded-lg p-3 mt-3">
+                                    <p className="text-sm text-yellow-800 flex gap-2">
+                                        <span className="text-lg">⚠️</span>
+                                        <span><strong>Cảnh báo:</strong> Mọi giao dịch liên quan sẽ bị xóa vĩnh viễn và không thể khôi phục!</span>
+                                    </p>
+                                </div>
+                            </div>
+                            <div className="px-6 py-4 bg-gray-50 border-t border-gray-100 flex gap-3">
+                                <button
+                                    onClick={() => setDeleteCustomer(null)}
+                                    className="flex-1 px-4 py-2 bg-white border border-gray-300 text-gray-700 rounded-lg hover:bg-gray-50 font-medium transition-colors"
+                                >
+                                    Hủy bỏ
+                                </button>
+                                <button
+                                    onClick={handleDeleteConfirm}
+                                    className="flex-1 px-4 py-2 bg-red-600 text-white rounded-lg font-bold shadow-md hover:bg-red-700 transition-transform active:scale-95"
+                                >
+                                    Xác nhận Xóa
+                                </button>
+                            </div>
+                        </div>
+                    </div>
+                )}
             </div>
         </Layout>
     )

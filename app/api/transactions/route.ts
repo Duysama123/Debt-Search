@@ -1,5 +1,5 @@
 import { NextRequest, NextResponse } from 'next/server'
-import { getTransactions, createTransaction } from '@/lib/db'
+import { getTransactions, createTransaction, softDeleteTransaction, updateTransaction } from '@/lib/db'
 
 export async function GET(request: NextRequest) {
     try {
@@ -82,6 +82,57 @@ export async function POST(request: NextRequest) {
             )
         }
 
+        return NextResponse.json(
+            { success: false, error: error.message },
+            { status: 500 }
+        )
+    }
+}
+
+export async function PUT(request: NextRequest) {
+    try {
+        const body = await request.json()
+        const { id, ...updates } = body
+
+        if (!id) {
+            return NextResponse.json(
+                { success: false, error: 'Missing transaction ID' },
+                { status: 400 }
+            )
+        }
+
+        const transaction = await updateTransaction(id, updates)
+
+        return NextResponse.json({
+            success: true,
+            data: transaction
+        })
+    } catch (error: any) {
+        console.error('Error updating transaction:', error)
+        return NextResponse.json(
+            { success: false, error: error.message },
+            { status: 500 }
+        )
+    }
+}
+
+export async function DELETE(request: NextRequest) {
+    try {
+        const searchParams = request.nextUrl.searchParams
+        const id = searchParams.get('id')
+
+        if (!id) {
+            return NextResponse.json(
+                { success: false, error: 'Missing transaction ID' },
+                { status: 400 }
+            )
+        }
+
+        await softDeleteTransaction(id)
+
+        return NextResponse.json({ success: true })
+    } catch (error: any) {
+        console.error('Error deleting transaction:', error)
         return NextResponse.json(
             { success: false, error: error.message },
             { status: 500 }

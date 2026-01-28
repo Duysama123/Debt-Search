@@ -29,4 +29,5 @@ export interface CustomerBalance extends Customer {
     total_debt: number
     total_paid: number
     balance: number
+    oldest_debt_date?: string | null
 }

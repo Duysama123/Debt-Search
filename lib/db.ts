@@ -85,16 +85,21 @@ export async function deleteCustomer(id: string) {
 export async function getTransactions(customerId?: string, page = 1, limit = 50) {
     let query = supabase
         .from('transactions')
-        .select('*, customers(name, phone)', { count: 'exact' })
+        .select(`
+            *,
+            customer:customers(name, phone)
+        `, { count: 'exact' })
+        .is('deleted_at', null)
         .order('transaction_date', { ascending: false })
         .order('created_at', { ascending: false })
-        .range((page - 1) * limit, page * limit - 1)
 
     if (customerId) {
         query = query.eq('customer_id', customerId)
     }
 
     const { data, error, count } = await query
+        .range((page - 1) * limit, page * limit - 1)
+
     if (error) throw error
     return { transactions: data as Transaction[], total: count || 0 }
 }
@@ -121,4 +126,26 @@ export async function getDebtSummary() {
         total_paid: number
         total_balance: number
     }
+}
+
+export async function softDeleteTransaction(transactionId: string) {
+    const { error } = await supabase
+        .from('transactions')
+        .update({ deleted_at: new Date().toISOString() })
+        .eq('id', transactionId)
+
+    if (error) throw error
+    return true
+}
+
+export async function updateTransaction(id: string, transaction: Partial<Transaction>) {
+    const { data, error } = await supabase
+        .from('transactions')
+        .update(transaction)
+        .eq('id', id)
+        .select()
+        .single()
+
+    if (error) throw error
+    return data as Transaction
 }

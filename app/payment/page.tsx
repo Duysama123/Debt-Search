@@ -1,7 +1,9 @@
 'use client'
 
 import { useState, useEffect, useRef } from 'react'
+import toast from 'react-hot-toast'
 import Layout from '@/components/Layout'
+import ConfirmationModal from '@/components/ConfirmationModal'
 import { formatCurrency, formatDate, debounce } from '@/lib/utils'
 
 interface Customer {
@@ -31,6 +33,11 @@ export default function PaymentPage() {
     const [showResults, setShowResults] = useState(false)
     const [selectedCustomer, setSelectedCustomer] = useState<Customer | null>(null)
     const [recentPayments, setRecentPayments] = useState<Transaction[]>([])
+
+    // Modal State
+    const [showConfirm, setShowConfirm] = useState(false)
+    const [warningMsg, setWarningMsg] = useState<string | undefined>(undefined)
+    const [deleteId, setDeleteId] = useState<string | null>(null)
 
     const [formData, setFormData] = useState({
         amount: '',
@@ -95,19 +102,31 @@ export default function PaymentPage() {
         setShowResults(false)
     }
 
-    const handleSubmit = async (e: React.FormEvent) => {
+    const handlePreSubmit = (e: React.FormEvent) => {
         e.preventDefault()
         if (!selectedCustomer) {
-            alert('Vui lòng chọn khách hàng')
+            toast.error('Vui lòng chọn khách hàng')
             return
         }
 
         const amount = parseFloat(formData.amount)
-        if (amount > selectedCustomer.balance) {
-            if (!confirm('Số tiền trả lớn hơn số nợ hiện tại. Bạn có chắc chắn muốn tiếp tục?')) {
-                return
-            }
+        if (!amount || amount <= 0) {
+            toast.error('Vui lòng nhập số tiền hợp lệ')
+            return
         }
+
+        // Check Logic TH2: Payment > Debt
+        if (amount > selectedCustomer.balance) {
+            setWarningMsg(`Khách chỉ đang nợ ${formatCurrency(selectedCustomer.balance)}. Bạn có chắc muốn thu nhiều hơn?`)
+        } else {
+            setWarningMsg(undefined)
+        }
+
+        setShowConfirm(true)
+    }
+
+    const handleConfirmSubmit = async () => {
+        if (!selectedCustomer) return
 
         setLoading(true)
         try {
@@ -125,7 +144,7 @@ export default function PaymentPage() {
             const data = await res.json()
 
             if (data.success) {
-                alert('Ghi nhận thanh toán thành công!')
+                toast.success('Ghi nhận thanh toán thành công!')
                 setFormData({
                     amount: '',
                     description: '',
@@ -133,15 +152,39 @@ export default function PaymentPage() {
                 })
                 setSelectedCustomer(null)
                 setSearchTerm('')
+                setShowConfirm(false)
                 fetchRecentPayments()
             } else {
-                alert(data.error || 'Có lỗi xảy ra')
+                toast.error(data.error || 'Có lỗi xảy ra')
+                setShowConfirm(false)
             }
         } catch (error) {
             console.error('Error creating payment:', error)
-            alert('Có lỗi xảy ra')
+            toast.error('Lỗi kết nối mạng')
         } finally {
             setLoading(false)
+        }
+    }
+
+
+    const handleDeletePayment = async () => {
+        if (!deleteId) return
+
+        try {
+            const res = await fetch(`/api/transactions?id=${deleteId}`, {
+                method: 'DELETE'
+            })
+            const data = await res.json()
+            if (data.success) {
+                toast.success('Đã xóa giao dịch thành công!')
+                fetchRecentPayments()
+                setDeleteId(null)
+            } else {
+                toast.error(data.error || 'Có lỗi xảy ra khi xóa')
+            }
+        } catch (error) {
+            console.error('Error deleting payment:', error)
+            toast.error('Lỗi kết nối mạng')
         }
     }
 
@@ -154,7 +197,7 @@ export default function PaymentPage() {
                 </div>
 
                 <div className="card max-w-3xl border-2 border-green-100">
-                    <form onSubmit={handleSubmit} className="space-y-6">
+                    <form onSubmit={handlePreSubmit} className="space-y-6">
                         <div ref={searchRef} className="relative">
                             <label className="block text-lg font-bold text-gray-700 mb-2">
                                 Khách hàng <span className="text-red-500">*</span>
@@ -269,10 +312,10 @@ export default function PaymentPage() {
                         <div className="flex gap-4 pt-4">
                             <button
                                 type="submit"
-                                disabled={loading}
-                                className="btn-primary flex-1 !bg-green-600 hover:!bg-green-700"
+                                disabled={loading || !selectedCustomer}
+                                className="btn-primary flex-1 !bg-green-600 hover:!bg-green-700 disabled:opacity-50"
                             >
-                                {loading ? 'Đang xử lý...' : 'Ghi Thanh Toán'}
+                                Ghi Thanh Toán
                             </button>
                             <button
                                 type="button"
@@ -300,12 +343,13 @@ export default function PaymentPage() {
                                     <th className="table-header">Khách hàng</th>
                                     <th className="table-header">Ghi chú</th>
                                     <th className="table-header text-right">Số tiền</th>
+                                    <th className="table-header w-10"></th>
                                 </tr>
                             </thead>
                             <tbody>
                                 {recentPayments.length > 0 ? (
                                     recentPayments.map((txn) => (
-                                        <tr key={txn.id} className="hover:bg-gray-50">
+                                        <tr key={txn.id} className="hover:bg-gray-50 group">
                                             <td className="table-cell">{formatDate(txn.transaction_date)}</td>
                                             <td className="table-cell font-medium">
                                                 {txn.customer?.name}
@@ -315,11 +359,22 @@ export default function PaymentPage() {
                                             <td className="table-cell text-right text-green-600 font-bold text-xl">
                                                 {formatCurrency(txn.amount)}
                                             </td>
+                                            <td className="table-cell text-right">
+                                                <button
+                                                    onClick={() => setDeleteId(txn.id)}
+                                                    className="opacity-0 group-hover:opacity-100 text-gray-400 hover:text-red-600 transition-opacity p-2"
+                                                    title="Xóa khoản thanh toán này"
+                                                >
+                                                    <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16" />
+                                                    </svg>
+                                                </button>
+                                            </td>
                                         </tr>
                                     ))
                                 ) : (
                                     <tr>
-                                        <td colSpan={4} className="table-cell text-center py-8 text-gray-500">
+                                        <td colSpan={5} className="table-cell text-center py-8 text-gray-500">
                                             Chưa có khoản thanh toán nào gần đây
                                         </td>
                                     </tr>
@@ -329,6 +384,56 @@ export default function PaymentPage() {
                     </div>
                 </div>
             </div>
+
+            {/* Confirmation Modal */}
+            <ConfirmationModal
+                isOpen={showConfirm}
+                onClose={() => setShowConfirm(false)}
+                onConfirm={handleConfirmSubmit}
+                loading={loading}
+                title="Xác nhận Thanh toán"
+                warningMessage={warningMsg}
+                data={{
+                    customerName: selectedCustomer?.name || '',
+                    amount: parseFloat(formData.amount) || 0,
+                    date: formData.transaction_date,
+                    description: formData.description,
+                    type: 'payment'
+                }}
+            />
+
+            {/* Delete Confirmation Modal */}
+            {deleteId && (
+                <div className="fixed inset-0 z-50 flex items-center justify-center bg-black bg-opacity-50 animate-fade-in px-4">
+                    <div className="bg-white rounded-xl shadow-2xl w-full max-w-md overflow-hidden animate-scale-up">
+                        <div className="px-6 py-4 bg-red-600 text-white">
+                            <h3 className="text-xl font-bold">⚠️ Xác nhận xóa</h3>
+                        </div>
+                        <div className="p-6">
+                            <p className="text-gray-700 text-lg">
+                                Bạn có chắc chắn muốn xóa giao dịch này không?
+                            </p>
+                            <p className="text-sm text-gray-500 mt-2">
+                                Hành động này sẽ ẩn giao dịch khỏi danh sách và cập nhật lại số dư.
+                            </p>
+                        </div>
+                        <div className="px-6 py-4 bg-gray-50 border-t border-gray-100 flex gap-3">
+                            <button
+                                onClick={() => setDeleteId(null)}
+                                className="flex-1 px-4 py-2 bg-white border border-gray-300 text-gray-700 rounded-lg hover:bg-gray-50 font-medium transition-colors"
+                            >
+                                Hủy bỏ
+                            </button>
+                            <button
+                                onClick={handleDeletePayment}
+                                className="flex-1 px-4 py-2 bg-red-600 text-white rounded-lg font-bold shadow-md hover:bg-red-700 transition-transform active:scale-95"
+                            >
+                                Xác nhận Xóa
+                            </button>
+                        </div>
+                    </div>
+                </div>
+            )}
         </Layout>
     )
 }

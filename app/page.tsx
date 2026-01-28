@@ -1,6 +1,7 @@
 'use client'
 
 import { useState, useEffect, useRef } from 'react'
+import { useRouter } from 'next/navigation'
 import Layout from '@/components/Layout'
 import { formatCurrency, formatDate, debounce } from '@/lib/utils'
 
@@ -30,11 +31,45 @@ export default function Home() {
     const [transactions, setTransactions] = useState<Transaction[]>([])
     const [loading, setLoading] = useState(false)
     const searchInputRef = useRef<HTMLInputElement>(null)
+    const router = useRouter()
 
-    // Auto-focus search on load
+    // Global keyboard shortcuts
     useEffect(() => {
+        const handleGlobalKeyDown = (e: KeyboardEvent) => {
+            // Ctrl+K: Focus search
+            if (e.ctrlKey && e.key === 'k') {
+                e.preventDefault()
+                searchInputRef.current?.focus()
+            }
+            // Esc: Close details or Clear search
+            if (e.key === 'Escape') {
+                if (selectedCustomer) {
+                    setSelectedCustomer(null)
+                    setTransactions([])
+                    setSearchTerm('')
+                    setTimeout(() => searchInputRef.current?.focus(), 0)
+                } else if (searchTerm) {
+                    setSearchTerm('')
+                }
+            }
+            // Ctrl+D: Quick Debt
+            if (e.ctrlKey && e.key === 'd' && selectedCustomer) {
+                e.preventDefault()
+                router.push(`/debt?customer=${selectedCustomer.id}`)
+            }
+            // Ctrl+P: Quick Payment
+            if (e.ctrlKey && e.key === 'p' && selectedCustomer) {
+                e.preventDefault()
+                router.push(`/payment?customer=${selectedCustomer.id}`)
+            }
+        }
+
+        window.addEventListener('keydown', handleGlobalKeyDown)
+        // Auto-focus search on load
         searchInputRef.current?.focus()
-    }, [])
+
+        return () => window.removeEventListener('keydown', handleGlobalKeyDown)
+    }, [selectedCustomer, searchTerm, router])
 
     // Debounced search
     useEffect(() => {
@@ -220,8 +255,8 @@ export default function Home() {
                                         <div
                                             key={txn.id}
                                             className={`flex items-center justify-between p-4 rounded-lg border-2 ${txn.type === 'debt'
-                                                    ? 'bg-red-50 border-red-200'
-                                                    : 'bg-green-50 border-green-200'
+                                                ? 'bg-red-50 border-red-200'
+                                                : 'bg-green-50 border-green-200'
                                                 }`}
                                         >
                                             <div className="flex items-center gap-4">
@@ -266,7 +301,8 @@ export default function Home() {
                                     <li>• Gõ <strong>số điện thoại</strong> để tìm chính xác nhất</li>
                                     <li>• Gõ <strong>tên</strong> (ít nhất 2 ký tự) để tìm theo tên</li>
                                     <li>• Nhấn <strong>Enter</strong> để chọn kết quả đầu tiên</li>
-                                    <li>• Kết quả hiển thị ngay khi gõ (không cần click Tìm)</li>
+                                    <li>• <strong>Ctrl + K</strong>: Quay về ô tìm kiếm</li>
+                                    <li>• <strong>Esc</strong>: Đóng chi tiết / Xóa tìm kiếm</li>
                                 </ul>
                             </div>
                         </div>
