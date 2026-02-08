@@ -173,7 +173,7 @@ export default function DebtPage() {
                 body: JSON.stringify({
                     customer_id: selectedCustomer.id,
                     type: 'debt',
-                    amount: formData.amount,
+                    amount: parseFloat(formData.amount),
                     description: formData.description,
                     transaction_date: formData.transaction_date
                 })
@@ -350,8 +350,7 @@ export default function DebtPage() {
                                 <input
                                     type="number"
                                     required
-                                    min="1000"
-                                    step="1000"
+                                    min="1"
                                     className="input-field pr-12 text-2xl font-bold text-red-600"
                                     value={formData.amount}
                                     onChange={(e) => setFormData({ ...formData, amount: e.target.value })}

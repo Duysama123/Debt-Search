@@ -1,0 +1,59 @@
+name: Keep Supabase Active
+
+on:
+  # Run every 5 days at midnight UTC (to prevent 7-day pause)
+  schedule:
+    - cron: '0 0 */5 * *'
+  
+  # Allow manual trigger from GitHub Actions tab
+  workflow_dispatch:
+
+jobs:
+  ping:
+    runs-on: ubuntu-latest
+    
+    steps:
+      - name: Ping Health Check Endpoint
+        run: |
+          echo "Pinging health check endpoint to keep Supabase active..."
+          
+          # Get the deployment URL from environment variable or use production URL
+          URL="${{ secrets.DEPLOYMENT_URL }}/api/health"
+          
+          # If DEPLOYMENT_URL is not set, you can hardcode your production URL here
+          # URL="https://your-app.vercel.app/api/health"
+          
+          # Ping the endpoint with retry logic
+          for i in {1..3}; do
+            echo "Attempt $i of 3..."
+            
+            RESPONSE=$(curl -s -w "\n%{http_code}" -X GET "$URL" --max-time 30)
+            HTTP_CODE=$(echo "$RESPONSE" | tail -n1)
+            BODY=$(echo "$RESPONSE" | head -n-1)
+            
+            echo "HTTP Status: $HTTP_CODE"
+            echo "Response: $BODY"
+            
+            if [ "$HTTP_CODE" -eq 200 ]; then
+              echo "✅ Health check successful!"
+              exit 0
+            else
+              echo "⚠️ Health check failed with status $HTTP_CODE"
+              if [ $i -lt 3 ]; then
+                echo "Retrying in 10 seconds..."
+                sleep 10
+              fi
+            fi
+          done
+          
+          echo "❌ All retry attempts failed"
+          exit 1
+      
+      - name: Report Status
+        if: always()
+        run: |
+          if [ $? -eq 0 ]; then
+            echo "🎉 Supabase database is active and healthy"
+          else
+            echo "⚠️ Warning: Health check failed. Please check your deployment."
+          fi

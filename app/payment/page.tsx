@@ -136,7 +136,7 @@ export default function PaymentPage() {
                 body: JSON.stringify({
                     customer_id: selectedCustomer.id,
                     type: 'payment',
-                    amount: formData.amount,
+                    amount: parseFloat(formData.amount),
                     description: formData.description,
                     transaction_date: formData.transaction_date
                 })
@@ -270,8 +270,7 @@ export default function PaymentPage() {
                                 <input
                                     type="number"
                                     required
-                                    min="1000"
-                                    step="1000"
+                                    min="1"
                                     className="input-field pr-12 text-2xl font-bold text-green-600"
                                     value={formData.amount}
                                     onChange={(e) => setFormData({ ...formData, amount: e.target.value })}

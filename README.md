@@ -63,6 +63,39 @@ Mở [http://localhost:3000](http://localhost:3000) để xem kết quả.
 3. Thêm environment variables
 4. Deploy!
 
+## 🔄 Auto-Resume (Tránh Supabase Pause)
+
+Supabase Free tier sẽ tự động pause project sau 7 ngày không hoạt động. Hệ thống này đã được cấu hình để tự động giữ active:
+
+### GitHub Actions Workflow
+
+- **Tự động chạy**: Mỗi 5 ngày lúc 00:00 UTC
+- **Chức năng**: Ping endpoint `/api/health` để giữ database active
+- **File**: `.github/workflows/keep-alive.yml`
+
+### Cấu hình (Chỉ cần làm 1 lần)
+
+1. **Thêm Secret vào GitHub**:
+   - Vào repository → Settings → Secrets and variables → Actions
+   - Thêm secret mới: `DEPLOYMENT_URL`
+   - Value: URL production của bạn (VD: `https://your-app.vercel.app`)
+
+2. **Enable GitHub Actions** (nếu chưa enable):
+   - Vào repository → Actions tab
+   - Click "I understand my workflows, go ahead and enable them"
+
+3. **Test thủ công** (Optional):
+   - Vào Actions tab → "Keep Supabase Active" workflow
+   - Click "Run workflow" → "Run workflow"
+   - Kiểm tra logs để đảm bảo chạy thành công
+
+### Monitoring
+
+- **Xem lịch sử**: GitHub repository → Actions tab
+- **Health check manual**: Truy cập `https://your-app.vercel.app/api/health`
+- **Supabase status**: Kiểm tra dashboard để đảm bảo không bị pause
+
+
 ## 📱 Cài đặt PWA
 
 Sau khi deploy, mở web trên Chrome/Edge:
